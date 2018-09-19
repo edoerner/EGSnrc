@@ -1011,9 +1011,13 @@ $LOGICAL  do_range;
 $REAL     the_range;
 */
 
+"*******************************************************************************
+" #HYBRID_EGS - Global variable ierust is made private to
+"            each thread through the THREADPRIVATE directive
+"*******************************************************************************
 data ierust/0/;         "To count negative ustep's"
-
 save ierust;
+$OMP{0,THREADPRIVATE(ierust)};
 
 $CALL-USER-ELECTRON;
 
@@ -2988,7 +2992,12 @@ $REAL    sprob,explambda,wsum,wprob,xi,rejf,spin_rejection,
          cosz,sinz,phi,omega2,llmbda,ai,aj,ak,a,u,du,x1,rnno;
 $INTEGER icount,i,j,k;
 
+"*******************************************************************************
+" #HYBRID_EGS - Global variables i,j,omega2 are made private to
+"            each thread through the THREADPRIVATE directive.
+"*******************************************************************************
 save     i,j,omega2;
+$OMP{0,THREADPRIVATE(i,j,omega2)};
 
 $TURN_OFF_SCATTERING;
 " default of above is ';' See definition in egsnrc.macros for example"
@@ -3167,7 +3176,12 @@ COMIN/Spin-Data,RANDOM/;
 $REAL      rnno,ai,qq1,aj,xi,ak;
 $INTEGER   i,j,k;
 
+"*******************************************************************************
+" #HYBRID_EGS - Global variables i,j are made private to
+"            each thread through the THREADPRIVATE directive.
+"*******************************************************************************
 save       i,j;
+$OMP{0,THREADPRIVATE(i,j)};
 
 IF( spin_index ) [  "Determine the energy and q1 index
     spin_index = .false.;
@@ -6755,7 +6769,14 @@ $INTEGER
               "indeces for sine table"
 
 $DEFINE-VARIABLES-FOR-SELECT-AZIMUTHAL-ANGLE;
+
+"*******************************************************************************
+" #HYBRID_EGS - Global variables are made private to
+"            each thread through the THREADPRIVATE directive
+"*******************************************************************************
 save CTHET,PHI,CPHI,A,B,C,SINPS2,SINPSI,US,VS,SINDEL,COSDEL;
+$OMP{0,THREADPRIVATE(CTHET,PHI,CPHI,A,B,C,SINPS2,SINPSI,US,VS,SINDEL)};
+$OMP{0,THREADPRIVATE(COSDEL)};
 
 $AUSCALL($UPHIAUSB);
 GO TO (:UPHI:,:UPHI2:,:NRK:),IENTRY;
@@ -8625,9 +8646,12 @@ real*8 sum0,a,b,x1,x2,pow_x1,pow_x2,dle,e,xmax,
        anorm,anorm1,anorm2,w,dw,xold,t,aux;
 $INTEGER i,j,k,ibin;
 
-;COMIN/USEFUL/;
+"*******************************************************************************
+" #HYBRID_EGS - Add EGS-IO COMMON block to to use $egs_info macro.
+"*******************************************************************************
+;COMIN/USEFUL,EGS-IO/;
 
-write(*,'(a$)') '      preparing data for Rayleigh sampling ... ';
+$egs_info('(a$)','      preparing data for Rayleigh sampling ... ');
 
 /* this to avoid NAN in the log(f(i)) below */
 DO i=1,ndat [IF (f(i) = 0.0) f(i) = zero();]
@@ -8721,7 +8745,7 @@ DO i=2,ncbin-1 [
 DO j=1,ndat [ b_array(j) = 0.5/(1 + b_array(j)); ]
 
 
-write(*,'(a /)') 'done';
+$egs_info('(a /)', 'done');
 
 return; end;
 

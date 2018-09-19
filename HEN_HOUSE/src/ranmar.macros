@@ -65,10 +65,16 @@
 
 
 REPLACE {$NRANMAR} WITH {128}
+
+"*******************************************************************************
+" #HYBRID_EGS - Global data inside /randomm/ COMMON block are made private to
+"            each thread through the THREADPRIVATE directive
+"*******************************************************************************
 REPLACE {;COMIN/RANDOM/;} WITH
 {;
    common/randomm/ rng_array($NRANMAR), urndm(97), crndm, cdrndm, cmrndm,
                    i4opt, ixx, jxx, fool_optimizer, twom24, rng_seed;
+    $OMP{0,THREADPRIVATE(/randomm/)};
    integer*4       urndm, crndm, cdrndm, cmrndm, i4opt,
                    ixx, jxx, fool_optimizer,rng_seed,rng_array;
    real*4          twom24;

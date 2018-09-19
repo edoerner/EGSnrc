@@ -468,7 +468,10 @@ subroutine egs_check_arguments;
 "*****************************************************************************
 implicit none;
 
-;COMIN/EGS-IO/;
+"*******************************************************************************
+" #HYBRID_EGS - Add OMP-EGS COMMON block to access MPI rank of current process.
+"*******************************************************************************
+;COMIN/EGS-IO, OMP-EGS/;
 
 character arg*256,tmp_string*512, line1*80;
 $LOGICAL  have_arg,egs_isdir,egs_strip_extension,ex,
@@ -529,6 +532,13 @@ IF( have_arg ) [
 " Check for batch option "
 $check_argument('-b','--batch',arg);
 IF( have_arg ) is_batch = .true.;
+
+"*******************************************************************************
+" #HYBRID_EGS - Enable batch mode if more than one MPI process is used.
+"*******************************************************************************
+$IF(#,_MPI);
+    is_batch = .true.;
+$ENDIF(#);
 
 " Check for parallel run option"
 $check_get_argument('-P','--parallel',arg);
@@ -662,7 +672,10 @@ subroutine egs_open_units(flag);
 implicit none;
 $LOGICAL flag;
 
-;COMIN/EGS-IO/;
+"*******************************************************************************
+" #HYBRID_EGS - Add OMP-EGS COMMON block to access MPI rank of current process.
+"*******************************************************************************
+;COMIN/EGS-IO, OMP-EGS/;
 
 character tmp_string*1024, tmp1_string*1024, tmp2_string*1024, ucode_dir*1024,
           input_line*100, arg*20;
@@ -680,10 +693,23 @@ ELSE [
 ]
 
 tmp_string = $cstring(tmp_string) // $cstring(output_file);
-IF( i_parallel > 0 ) [
-    tmp_string = $cstring(tmp_string) // '_w';
-    call egs_itostring(tmp_string,i_parallel,.false.);
-]
+"*******************************************************************************
+" #HYBRID_EGS - Consider MPI/OpenMP execution. If MPI is enabled create an 
+"            output file per process. If MPI/OpenMP is not enabled 
+"            default parallelization scheme is followed.
+"*******************************************************************************
+$IF(#,defined(_MPI));
+    IF( mpi_size > 1 ) [
+        tmp_string = $cstring(tmp_string) // '_w';
+        call egs_itostring(tmp_string,gid+1,.false.);
+    ]
+$ELSE(#);
+    IF( i_parallel > 0 ) [
+        tmp_string = $cstring(tmp_string) // '_w';
+        call egs_itostring(tmp_string,i_parallel,.false.);
+    ]
+$ENDIF(#);
+
 $set_string(tmp1_string,' ');
 i_log=6;
 IF( is_batch ) [
@@ -1149,7 +1175,12 @@ integer function egs_open_file(iunit,rl,action,extension);
 implicit none;
 $INTEGER iunit, rl, action;
 character*(*) extension;
-;COMIN/EGS-IO/;
+
+"*******************************************************************************
+" #HYBRID_EGS - Add OMP-EGS COMMON block to access MPI rank of current process.
+"*******************************************************************************
+;COMIN/EGS-IO, OMP-EGS/;
+
 $LOGICAL egs_is_absolute_path,is_open;
 integer  egs_get_unit;
 integer  i,lnblnk1;
@@ -1189,10 +1220,24 @@ IF( egs_is_absolute_path(extension) ) [
 $set_string(tmp_string,' ');
 tmp_string = $cstring(egs_home) // $cstring(user_code) // $file_sep //
              $cstring(work_dir) // $cstring(output_file);
-IF( i_parallel > 0 ) [
-    tmp_string = $cstring(tmp_string) // '_w';
-    call egs_itostring(tmp_string,i_parallel,.false.);
-]
+
+"*******************************************************************************
+" #HYBRID_EGS - Consider MPI/OpenMP execution. If MPI is enabled create an 
+"            output file per process. If MPI/OpenMP is not enabled 
+"            default parallelization scheme is followed.
+"*******************************************************************************
+$IF(#,defined(_MPI));
+    IF( mpi_size > 1 ) [
+        tmp_string = $cstring(tmp_string) // '_w';
+        call egs_itostring(tmp_string,gid+1,.false.);
+    ]
+$ELSE(#);
+    IF( i_parallel > 0 ) [
+        tmp_string = $cstring(tmp_string) // '_w';
+        call egs_itostring(tmp_string,i_parallel,.false.);
+    ]
+$ENDIF(#);
+
 tmp_string = $cstring(tmp_string) // $cstring(extension);
 
 inquire(file=tmp_string,opened=is_open);
@@ -1252,7 +1297,10 @@ implicit none;
 $INTEGER iunit,rl,action;
 character*(*) extension;
 
-;COMIN/EGS-IO/;
+"*******************************************************************************
+" #HYBRID_EGS - Add OMP-EGS COMMON block to access MPI rank of current process.
+"*******************************************************************************
+;COMIN/EGS-IO, OMP-EGS/;
 
 integer  i,the_unit,lnblnk1,egs_get_unit;
 $LOGICAL egs_is_absolute_path;
@@ -1286,14 +1334,32 @@ IF( egs_is_absolute_path(extension) ) [
 $set_string(base,' '); $set_string(fn,' ');
 base = $cstring(egs_home) // $cstring(user_code) // $file_sep;
 "fn = $cstring(base) // $cstring(output_file) // $cstring(extension);"
-IF( i_parallel > 0 ) [
-    fn = $cstring(base) // $cstring(output_file) // '_w';
-    call egs_itostring(fn,i_parallel,.false.);
-    fn = $cstring(fn) // $cstring(extension);
-]
-ELSE [
-    fn = $cstring(base) // $cstring(output_file) // $cstring(extension);
-]
+
+"*******************************************************************************
+" #HYBRID_EGS - Consider MPI/OpenMP execution. If MPI is enabled create a 
+"            dat file per process. If MPI/OpenMP is not enabled 
+"            default parallelization scheme is followed.
+"*******************************************************************************
+$IF(#,defined(_MPI));
+    IF( gsize > 1 ) [
+        fn = $cstring(base) // $cstring(output_file) // '_w';
+        call egs_itostring(fn,gid+1,.false.);
+        fn = $cstring(fn) // $cstring(extension);
+    ]
+    ELSE [
+        fn = $cstring(base) // $cstring(output_file) // $cstring(extension);
+    ]
+$ELSE(#);
+    IF( i_parallel > 0 ) [
+        fn = $cstring(base) // $cstring(output_file) // '_w';
+        call egs_itostring(fn,i_parallel,.false.);
+        fn = $cstring(fn) // $cstring(extension);
+    ]
+    ELSE [
+        fn = $cstring(base) // $cstring(output_file) // $cstring(extension);
+    ]
+$ENDIF(#);
+
 IF( rl = 0 ) [
     open(the_unit,file=fn,status='old',err=:no_datfile_1:);
 ]
@@ -1307,14 +1373,32 @@ egs_open_datfile = the_unit; return;
 $egs_warning('(a,a)','Failed to open ',$cstring(fn));
 $set_string(fn,' ');
 "fn = $cstring(base) // $cstring(input_file) // $cstring(extension);"
-IF( i_parallel > 0 ) [
-    fn = $cstring(base) // $cstring(input_file) // '_w';
-    call egs_itostring(fn,i_parallel,.false.);
-    fn = $cstring(fn) // $cstring(extension);
-]
-ELSE [
-    fn = $cstring(base) // $cstring(input_file) // $cstring(extension);
-]
+
+"*******************************************************************************
+" #HYBRID_EGS - Consider MPI/OpenMP execution. If MPI is enabled create a 
+"            dat file per process. If MPI/OpenMP is not enabled 
+"            default parallelization scheme is followed.
+"*******************************************************************************
+$IF(#,defined(_MPI));
+    IF( gsize > 1 ) [
+        fn = $cstring(base) // $cstring(input_file) // '_w';
+        call egs_itostring(fn,gid+1,.false.);
+        fn = $cstring(fn) // $cstring(extension);
+    ]
+    ELSE [
+        fn = $cstring(base) // $cstring(input_file) // $cstring(extension);
+    ]
+$ELSE(#);
+    IF( i_parallel > 0 ) [
+        fn = $cstring(base) // $cstring(input_file) // '_w';
+        call egs_itostring(fn,i_parallel,.false.);
+        fn = $cstring(fn) // $cstring(extension);
+    ]
+    ELSE [
+        fn = $cstring(base) // $cstring(input_file) // $cstring(extension);
+    ]
+$ENDIF(#);
+
 IF( rl = 0 ) [
     open(the_unit,file=fn,status='old',err=:no_datfile_2:);
 ]

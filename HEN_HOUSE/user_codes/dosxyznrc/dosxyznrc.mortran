@@ -1153,15 +1153,21 @@ REPLACE {$CALL-HOWNEAR(#);} WITH {
     CALL HOWNEAR({P1},X(NP),Y(NP),Z(NP),IR(NP));
 }
 
+"*******************************************************************************
+" #HYBRID_EGS - Global data inside /score/ COMMON block are made private to 
+"            each thread through the THREADPRIVATE directive. Counter IHSTRY 
+"            is added to the block.
+"*******************************************************************************
 REPLACE {;COMIN/SCORE/;} WITH {
     ;common/score/endep($MAXDOSE), endep2($MAXDOSE), temp2, planarefe,
     planarefp,planarfe,planarfp,
-    nestep,
+    nestep, IHSTRY,
     endep_tmp($MAXDOSE),
     i_phsp_out,i_muidx_out,i_unit_out,IWATCH,mxnp,
     endep_last($MAXDOSE);
+    $OMP{0,THREADPRIVATE(/score/)};
     REAL*8 endep, endep2, temp2,planarefe, planarefp, planarfe, planarfp;
-    $LONG_INT nestep;
+    $LONG_INT nestep, IHSTRY;
     real endep_tmp;
     integer i_phsp_out, "set to 1 or 2 to output phsp data to IAEA format"
                         "phase space file"
@@ -1246,13 +1252,44 @@ $LONG_INT nnphsp_max, nnphsp_min; } TO
 
 "  start of coding                 ""toc:
 
+"*******************************************************************************
+" #HYBRID_EGS - PROGRAM statement added to clearly define the start 
+"               of the program.
+"*******************************************************************************
+PROGRAM dosxyznrc;
+
+"*******************************************************************************
+" #HYBRID_EGS - Include the MPI module to access MPI runtime subroutines. It 
+"               is used only if the user specifies the _MPI macro during 
+"               compilation.
+"*******************************************************************************
+$IFDEF(#,_MPI);
+  USE MPI;
+$ENDIF(#);
+
+"*******************************************************************************
+" #HYBRID_EGS - Include the OMP_LIB module to access OpenMP runtime functions.  
+"               It is used only if the user code is compiled with OpenMP.
+"*******************************************************************************
+$IFDEF(#,_OPENMP);
+  USE OMP_LIB;
+$ENDIF(#);
+
 $IMPLICIT-NONE;
+
+"*******************************************************************************
+" #HYBRID_EGS - The following COMMON blocks were marked as THREADPRIVATE. Their
+"               data must be copied from the master thread to the corresponding 
+"               COMMON blocks of the other threads through the COPYIN clause.
+"               Therefore, they are declared here.
+"*******************************************************************************
+;COMIN/OMP-EGS,EGS-VARIANCE-REDUCTION,PHOTIN,RELAX-FOR-USER,UPHIOT,RELAX-USER/;
 
 ;COMIN/ BOUNDS,BREMPR,ELECIN,GEOM,MEDIA,MISC,PHSPFILE,SCORE,SOURCE,
 STACK,THRESH,USEFUL,RANDOM,TIMEINFO,ET-Control,CH-Steps,USER,EPCONT,EGS-IO,
 RWPHSP/;
 
-$LONG_INT NCASE,IHSTRY,tempdiv,jcase,compensated_NCASE;
+$LONG_INT NCASE,tempdiv,jcase,compensated_NCASE;
 "compensated_NCASE for source 20 only"
 integer   idosl($MXDOS),idosu($MXDOS),jdosl($MXDOS),jdosu($MXDOS),
           kdosl($MXDOS),kdosu($MXDOS),IZSCAN($MXDOS),idgrp,n,j,i,
@@ -1366,6 +1403,11 @@ $DECLARE_TIMING_VARIABLES;
 "cput1 is cputime at start of simulations"
 "cput2 is cputime when asked for so elapsed cpu is cput2-cput0 or -cput1"
 
+"*******************************************************************************
+" #HYBRID_EGS - Establish the MPI environment.  
+"*******************************************************************************
+$INTEGER ierr;  "error code returned by MPI subroutines"
+$MPI{#, call MPI_INIT(ierr)};
 
 call egs_init; "initialize EGSnrc system"
 
@@ -1970,6 +2012,28 @@ skindepth_for_bca=0;
 
 call get_transport_parameter(-1);
 
+"now check to see if ECUTIN>ECUT or PCUTIN>PCUT"
+IF(ECUTIN>ECUT)[ "reset ecut in all regions to ecutin"
+   OUTPUT ECUT;
+    (/' ****WARNING****'/
+      ' ECUTIN > ECUT input in EGSnrc parameters ( ',F10.4,' MeV).'/
+      ' ECUT defaults to ECUTIN.'/);
+   ECUT=ECUTIN;
+]
+ELSE[
+   ECUTIN=ECUT;
+]
+IF(PCUTIN>PCUT)[ "reset ecut in all regions to ecutin"
+   OUTPUT PCUT;
+    (/' ****WARNING****'/
+      ' PCUTIN > PCUT input in EGSnrc parameters ( ',F10.4,' MeV).'/
+      ' PCUT defaults to PCUTIN.'/);
+   PCUT=PCUTIN;
+]
+ELSE[
+   ECUTIN=ECUT;
+]
+
 IF((~exact_bca | transport_algorithm=$PRESTA--I) & SMAXIR=1e10)[
 "if we get to here with the default value of SMAX (1e10), then"
 "assume that this is because the SMAX input does not exist, the user"
@@ -1993,30 +2057,6 @@ call show_transport_parameter(iout); " print the transport parameter settings"
 "=========================================================================="
 "End of block added by Ernesto Mainegra-Hing Dec 2011"
 "=========================================================================="
-
-"now check to see if ECUTIN>ECUT or PCUTIN>PCUT"
-"or, in the case where GUI inputs for ECUT/PCUT were left blank and"
-"ECUT/PCUT defaulted to AE/AP in hatch, ECUT>ECUTIN or PCUT>PCUTIN"
-IF(ECUTIN>ECUT)[ "reset ecut in all regions to ecutin"
-   OUTPUT ECUT;
-    (/' ****WARNING****'/
-      ' ECUTIN > ECUT input in EGSnrc parameters ( ',F10.4,' MeV).'/
-      ' ECUT defaults to ECUTIN.'/);
-   ECUT=ECUTIN;
-]
-ELSE[
-   ECUTIN=ECUT;
-]
-IF(PCUTIN>PCUT)[ "reset ecut in all regions to ecutin"
-   OUTPUT PCUT;
-    (/' ****WARNING****'/
-      ' PCUTIN > PCUT input in EGSnrc parameters ( ',F10.4,' MeV).'/
-      ' PCUT defaults to PCUTIN.'/);
-   PCUT=PCUTIN;
-]
-ELSE[
-   ECUTIN=ECUT;
-]
 
 "call this here so that BEAM simulation source can get i_parallel if"
 "pprocess is used"
@@ -2594,6 +2634,78 @@ IF( n_parallel > 0 ) [  "Job is part of a parallel run "
 ]
 #endif;
 
+"*******************************************************************************
+" #HYBRID_EGS - Establish Hybrid MPI/OpenMP parallel environment. One-time 
+"               initializations needed for parallel processing. On this step 
+"               the values on COMMON blocks with THREADPRIVATE directive are 
+"               initialized through COPYIN clause. 
+"*******************************************************************************
+" NUMBER OF MPI PROCESSES AND RANK OF CURRENT PROCESS "
+$IF(#,_MPI);
+    $MPI{#, call MPI_COMM_RANK(MPI_COMM_WORLD, mpi_rank, ierr)};
+    $MPI{#, call MPI_COMM_SIZE(MPI_COMM_WORLD, mpi_size, ierr)};
+
+    " DIVIDE NUMBER OF REQUESTED HISTORIES AMONG MPI PROCESSES "
+    jcase = jcase/mpi_size;
+    IF( jcase < 1 ) [ jcase = 1; NCASE = jcase*mpi_size; ]
+$ELSE(#);
+    mpi_rank = 0;
+    mpi_size = 1;
+$ENDIF(#);
+
+$OMP{0,PARALLEL DEFAULT(SHARED) FIRSTPRIVATE(IXXIN,JXXIN)};
+$OMP{*,COPYIN(/CH_steps/,/egs_vr/,/EPCONT/,/OMP_EGS/,/PHOTIN/)};
+$OMP{*,COPYIN(/relax_for_user/,/RWPHSP/,/score/,/source/)};
+$OMP{*,COPYIN(/UPHIOT/,/USEFUL/,/user_relax/)};
+    " NUMBER OF OPENMP THREADS OF CURRENT MPI PROCESS AND THREAD ID "
+    $IFDEF(#,_OPENMP);
+        omp_iam = omp_get_thread_num();
+        omp_size = omp_get_num_threads();
+    $ELSE(#);
+        omp_iam = 0;
+        omp_size = 1;
+    $ENDIF(#);
+
+    " TOTAL NUMBER OF THREADS AND GLOBAL ID ACROSS MPI PROCESSES "
+    gid = omp_iam + omp_size*mpi_rank;
+    gsize = mpi_size*omp_size;
+
+    " RNG INITIALIZATION "
+    IXXIN = IXXIN;
+    JXXIN = JXXIN + gid;
+    $INITIALIZE RNG USING IXXIN AND JXXIN;
+
+    " STARTING POSITION IN PHSP FILE. NOTE THAT THE FILE IS EVENLY DIVIDED "
+    " AMONG THREADS. THEREFORE nnphsp_min and nnphsp_max ARE NOT CALCULATED"
+    $IF(#,defined(_OPENMP) || defined(_MPI)); 
+        IF(gsize>1)[
+            nnphsp=INT((gid)*nshist/gsize)+1;
+        ]
+    $ENDIF(#);
+
+    " PRINT INFORMATION ABOUT PARALLEL ENVIRONMENT TO CONSOLE "
+    $IF(#,defined(_OPENMP) || defined(_MPI));
+	  	$OMP{0,SINGLE};  			
+	  		OUTPUT61;(//'**************************************************');
+            $IF(#,_MPI);
+                OUTPUT61 mpi_size;
+	  		    (/,'  Number of MPI processes: ',I4);
+                $IF(#,_OMP);
+                    OUTPUT61 omp_size;
+	  		        (/,'  Number of OpenMP threads per MPI process: ',I4);
+                    OUTPUT61 gsize;
+	  		        (/,'  Total number of threads: ',I4);
+                $ENDIF(#);
+            $ELSE(#);
+                OUTPUT61 omp_size;
+	  		    (/,'  Number of OpenMP threads: ',I4);
+            $ENDIF(#);
+            OUTPUT61;(/,'*************************************************',/);
+	  	$OMP{0,END SINGLE};
+  	$ENDIF(#);    
+
+$OMP{0,END PARALLEL};
+
 DO ibatch = 1,$NBATCH["Break into $NBATCH batches"
 
     IF(ibatch =  1)[
@@ -2625,6 +2737,14 @@ DO ibatch = 1,$NBATCH["Break into $NBATCH batches"
         "analysis data for beam characterization models"
     ]
 
+"*******************************************************************************
+" #HYBRID_EGS - The shower loop is divided among the team of threads through the 
+"               PARALLEL DO directive. 
+"*******************************************************************************
+$OMP{0,PARALLEL DO SCHEDULE(runtime) DEFAULT(SHARED)};
+$OMP{*,FIRSTPRIVATE(xin,yin,zin,uin,vin,win,irin,etotin,weight)};
+$OMP{*,FIRSTPRIVATE(nhist_old)};
+$OMP{*,PRIVATE(irl,n_repeat,i_repeat)};
     DO ihist = 1,jcase[
 
         nhist_old=nhist;
@@ -2806,7 +2926,10 @@ ELSEIF (IRESTART = 3)["just data analysis"
        F12.0,' hist/hr'/T3,' On  '$MACHINE' ');
 ]
 
-
+"*******************************************************************************
+" #HYBRID_EGS - The following output information is only relevant for the MASTER 
+"            thread. 
+"*******************************************************************************
 IF(isource = 2 | isource = 8 )[ "Full phase-space source"
 OUTPUT61 nnread,nhist,nsrjct,nsoutside,ndbsrjct,nsmiss,
      float((NRCYCL+1)*(nnread-nsrjct-nsoutside-ndbsrjct)-nsmiss)/float(nnread),
@@ -2890,6 +3013,12 @@ ELSEIF(isource =4 )[ ;$BEAMMODEL-SOURCE4-SUMMARY; ]
 "Step 9 Analyse and output results                        ""toc:
 "=================================
 
+"*******************************************************************************
+" #HYBRID_EGS - Each thread carries out analysis of its own results. Any output 
+"               to console/list file will be done only for MASTER thread.
+"*******************************************************************************
+$OMP{0,PARALLEL DEFAULT(SHARED) PRIVATE(amass,etot,temp,irl,i,j,k)};
+$OMP{*,PRIVATE(parname,ainflu)};
 etot=0.;
 
 "Correlated sampling no longer supported with history by history statistics"
@@ -2899,18 +3028,20 @@ etot=0.;
 "Note that dose is still really just an energy deposition"
 DO irl=1,irmax-1[etot=etot+endep(irl);]
 
-IF (enflag = 0)[
-   "Known Bug - this doesn't handle positrons correctly yet"
-   OUTPUT61 etot/(dble(IHSTRY+ncaseold)*ein);
-   (/' Fraction of incident energy deposited in the phantom =',f12.4/);
-]
-ELSEIF((enflag=1)|(enflag=2)|(enflag=3)|(enflag=4))[ ;OUTPUT61 etot/esrc;
-   (/' Fraction of incident energy deposited in the phantom =',f12.4/);
-   IF ((enflag > 1))[ OUTPUT61 endep(irl)/esrc;
-   (/' Fraction of incident energy deposited in the region surrounding'/
-     ' the phantom when incident particles go through it   =',f12.4/);
-   ]
-]
+$OMP{0,MASTER};
+    IF (enflag = 0)[
+    "Known Bug - this doesn't handle positrons correctly yet"
+    OUTPUT61 etot/(dble(IHSTRY+ncaseold)*ein);
+    (/' Fraction of incident energy deposited in the phantom =',f12.4/);
+    ]
+    ELSEIF((enflag=1)|(enflag=2)|(enflag=3)|(enflag=4))[ ;OUTPUT61 etot/esrc;
+    (/' Fraction of incident energy deposited in the phantom =',f12.4/);
+    IF ((enflag > 1))[ OUTPUT61 endep(irl)/esrc;
+    (/' Fraction of incident energy deposited in the region surrounding'/
+        ' the phantom when incident particles go through it   =',f12.4/);
+    ]
+    ]
+$OMP{0,END MASTER};
 
 "Calculate incident fluence
 IF(isource = 0 | isource = 1 | isource = 3 | isource = 7)[
@@ -2961,26 +3092,30 @@ ELSEIF(isource=20)["full VCU simulation"
 
    temp2=ainflu;
 ]
-OUTPUT61 nestep,dble(nestep)/ainflu,count_pII_steps/dble(nestep);
- (/' Number of charged particle steps simulated,   N_step       =',I15/
-   ' Number of charged particle steps/incident fluence          =',1PE15.5/
-   ' No. of PRESTA-II steps/total no. of charged particle steps =',0PF15.5/);
 
-"Now calculate dose uncertainties"
-IF(dose_stat=1)[
-   OUTPUT61;(//' ***WARNING***'/
-       ' Could not read no. of primary (non-phsp) histories from ph-sp file.'/
-       ' Dose analyzed assuming each particle read from the ph-sp'/
-       ' file is an independent history.  May result in an underestimate'/
-       ' of the uncertainty.'//);
-]
-ELSEIF(OUTCNT>0)[
-   OUTPUT61;(//' ***WARNING***'/
-       ' The ph-sp source was restarted at least once.  This may lead'/
-       ' to an underestimate of uncertainty, especially if restarted'/
-       ' many times.  If restarted many times, try re-running with'/
-       ' NRCYCL recalculated as described at top of dosxyznrc.mortran'//);
-]
+$OMP{0,MASTER};
+    OUTPUT61 nestep,dble(nestep)/ainflu,count_pII_steps/dble(nestep);
+    (/' Number of charged particle steps simulated,   N_step       =',I15/
+    ' Number of charged particle steps/incident fluence          =',1PE15.5/
+    ' No. of PRESTA-II steps/total no. of charged particle steps =',0PF15.5/);
+
+    "Now calculate dose uncertainties"
+    IF(dose_stat=1)[
+    OUTPUT61;(//' ***WARNING***'/
+        ' Could not read no. of primary (non-phsp) histories from ph-sp file.'/
+        ' Dose analyzed assuming each particle read from the ph-sp'/
+        ' file is an independent history.  May result in an underestimate'/
+        ' of the uncertainty.'//);
+    ]
+    ELSEIF(OUTCNT>0)[
+    OUTPUT61;(//' ***WARNING***'/
+        ' The ph-sp source was restarted at least once.  This may lead'/
+        ' to an underestimate of uncertainty, especially if restarted'/
+        ' many times.  If restarted many times, try re-running with'/
+        ' NRCYCL recalculated as described at top of dosxyznrc.mortran'//);
+    ]
+$OMP{0,END MASTER};
+
 DO irl = 1,irmax-1 [
    IF(IDAT=1)[
      "add unscored portion of endep_tmp(irl) first"
@@ -2995,6 +3130,28 @@ DO irl = 1,irmax-1 [
 
 #ifdef HAVE_C_COMPILER;
 
+"*******************************************************************************
+" #HYBRID_EGS - We use the existing handling of parallel runs in order to
+"               combine the obtained results when MPI and/or OpenMP are used. 
+"*******************************************************************************
+$IF(#,defined(_OPENMP) || defined(_MPI));
+    IF(gsize>1)[
+
+    "now determine the full file name with the proper _w addition"
+    "this file is written directly into the user code directory"
+    parname=$cstring(egs_home) // $cstring(user_code) // $file_sep //
+             $cstring(work_dir) // $cstring(output_file);
+    parname=$cstring(parname)//'_w';
+    
+    call egs_itostring(parname,gid+1,.false.);
+    
+    parname=$cstring(parname)//'.pardose';
+    "name must be null terminated"
+    parname(lnblnk1(parname)+1:lnblnk1(parname)+1)=char(0);
+
+    call write_pardose(temp2,IMAX,JMAX,KMAX,endep,endep2,parname);
+    ]
+$ELSE(#);
 "store endep and endep2 before analysis for a parallel run"
 IF(IPARALLEL>1 | n_parallel>0)[
 
@@ -3013,8 +3170,11 @@ IF(IPARALLEL>1 | n_parallel>0)[
 
    call write_pardose(temp2,IMAX,JMAX,KMAX,endep,endep2,parname);
 ]
+$ENDIF(#);
 
 #endif;
+
+$OMP{0,END PARALLEL};
 
 :ANALYZE-PARALLEL:;
 
@@ -3306,10 +3466,21 @@ ELSE[
 ]
 
 "if IPHANT is set to 1, write out a .egsphant file"
+"*******************************************************************************
+" #HYBRID_EGS - Consider MPI/OpenMP execution. If MPI/OpenMP is not enabled 
+"            default parallelization scheme is followed.
+"*******************************************************************************
+$IF(#,defined(_OPENMP) || defined(_MPI));
+IF(IPHANT=1 & (gsize=1|(gsize>1 & is_finished)))[
+   call write_phantom(ioutphant,nmed,media,estepm,IMAX,JMAX,KMAX,xbound,ybound,
+                        zbound,rhor,med);
+]
+$ELSE(#);
 IF(IPHANT=1 & (n_parallel=0|(n_parallel>0 & is_finished)))[
    call write_phantom(ioutphant,nmed,media,estepm,IMAX,JMAX,KMAX,xbound,ybound,
                         zbound,rhor,med);
 ]
+$ENDIF(#);
 
 "zero doses in air in the .3ddose file if requested"
 IF(zeroairdose = 1)[
@@ -3349,11 +3520,22 @@ IF(zerodose=1 & zerocount >0)[
 
 "subroutine call replaces a portion of code to write to .3ddose file"
 "do not call if we are doing a parallel run"
+
+"*******************************************************************************
+" #HYBRID_EGS - Consider MPI/OpenMP execution. If MPI/OpenMP is not enabled 
+"            default parallelization scheme is followed.
+"*******************************************************************************
+$IF(#,defined(_OPENMP) || defined(_MPI));
+IF((gsize = 1) | (gsize > 1 & is_finished))[
+   call write_dose(IMAX,JMAX,KMAX,xbound,ybound,zbound,endep,endep2,idd,MAX20);
+]
+ELSE [OUTPUT61;(//' No dose outputs since this is a parallel run '//);]
+$ELSE(#);
 IF((IPARALLEL <= 1 & n_parallel = 0) | (n_parallel > 0 & is_finished))[
    call write_dose(IMAX,JMAX,KMAX,xbound,ybound,zbound,endep,endep2,idd,MAX20);
 ]
 ELSE [OUTPUT61;(//' No dose outputs since this is a parallel run '//);]
-
+$ENDIF(#);
 
 $SET_ELAPSED_CPUTIME(cput2);
 timcpu=$CONVERSION_TO_SECONDS*(cput2-cput0);
@@ -3374,17 +3556,48 @@ call egs_finish;     " Finish the simulation "
 
 #ifdef HAVE_C_COMPILER;
 ;
-IF( n_parallel > 0 & ~is_finished ) [
-    call egs_pjob_finish(n_job);
-    IF( n_job = 0 ) [
-        is_finished = .true.;
-        call egs_combine_runs(combine_results,'.pardose');
-        ainflu=temp2; "need to define this because it is used to normalize dose"
-        IF((isource = 0 | isource = 1 | isource = 3 | isource = 7) &
-           beamarea>0.) ainflu=ainflu/beamarea;
-        goto :ANALYZE-PARALLEL:;
+"*******************************************************************************
+" #HYBRID_EGS - Consider MPI/OpenMP execution. If MPI/OpenMP is not enabled 
+"            default parallelization scheme is followed.
+"*******************************************************************************
+$IF(#,defined(_OPENMP) || defined(_MPI));
+    IF(gsize > 1 & ~is_finished) [
+        " GET SURE THAT ALL MPI PROCESSES HAVE REACHED THIS POINT "
+        $MPI{#, call MPI_BARRIER(MPI_COMM_WORLD, ierr)};
+
+        IF(gid = 0) [
+            " Open again the list file "
+            mpi_size = 1;
+            call egs_open_units(.false.);
+
+            is_finished = .true.;
+            " Now combine the results of all the threads saved on "
+            " .pardose files."
+            call egs_combine_runs(combine_results,'.pardose');
+            ainflu=temp2; "need to define this because it is used to "
+                          "normalize dose"
+            IF((isource = 0 | isource = 1 | isource = 3 | isource = 7) &
+                beamarea>0.) ainflu=ainflu/beamarea;
+        
+            " Finally, process the combined data."
+            goto :ANALYZE-PARALLEL:;
+        ]        
     ]
-]
+$ELSE(#);
+    IF( n_parallel > 0 & ~is_finished ) [
+        call egs_pjob_finish(n_job);
+        IF( n_job = 0 ) [
+            is_finished = .true.;
+            call egs_combine_runs(combine_results,'.pardose');
+            ainflu=temp2;   "need to define this because it is used to "
+                            "normalize dose"
+            IF((isource = 0 | isource = 1 | isource = 3 | isource = 7) &
+            beamarea>0.) ainflu=ainflu/beamarea;
+            goto :ANALYZE-PARALLEL:;
+        ]
+    ]
+$ENDIF(#);
+
 #endif;
 
 IF(isource=9 | isource=21 | (isource=20 &
@@ -3392,10 +3605,18 @@ SHLflag=1 & MLCflag=0)) call finish_beamsource;
 
 IF((isource=20 | isource = 21) & MLCflag=1) [call finish_vcusource;]
 
+"*******************************************************************************
+" #HYBRID_EGS - Terminate the MPI environment.
+"*******************************************************************************
+$MPI{#, call MPI_FINALIZE(ierr)};
+
 $CALL_EXIT(0);
 
 stop 'Normal completion in main routine';
-end;
+"*******************************************************************************
+" #HYBRID_EGS - At this point the main routine ends. 
+"*******************************************************************************
+END PROGRAM dosxyznrc;
 "  end of main routine in dosxyznrc.mortran"
 %E    "dosxyznrc.mortran - start of subroutine ausgab"
 "*******************************************************************************
@@ -3426,7 +3647,13 @@ $REAL dist_loc, dist_tot, edep_loc, tv,t(2),xi,yi,zi,ui(2),vi(2),wi(2),
       distx,disty,distz,edep_frac,x_temp,y_temp,z_temp,u_temp,v_temp,w_temp,
       zlast_tmp;
 LOGICAL ir_defined;
+
+"*******************************************************************************
+" #HYBRID_EGS - Global variables are made private to
+"            each thread through the THREADPRIVATE directive
+"*******************************************************************************
 SAVE xi,yi,zi,ui,vi,wi,tv,iri,edep_save;
+$OMP{0,THREADPRIVATE(xi,yi,zi,ui,vi,wi,tv,iri,edep_save)};
 DATA edep_save/0.0/;
 
 IF(IWATCH ~=0) call watch(iarg,IWATCH); "IWATCH passed in comin score
