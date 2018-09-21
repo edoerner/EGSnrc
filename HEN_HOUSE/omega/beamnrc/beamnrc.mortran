@@ -3547,9 +3547,13 @@ DO ISCORE=1,NSC_PLANES [
         (//'***ERROR IN INPUT FOR SCORING PLANE ',I4,' ON CM ',I4/
         'Outer radius of zone ',I4,' =',F10.3,' cm, which is > RMAX_CM/SMAX_CM'/
         'Radius reduced to ',F10.3,' cm'//);
+"*******************************************************************************
+" #HYBRID_EGS - WRITE sentence modified because of Mortran preprocessing 
+"               problems due to addition of MPI/OpenMP capabilities to EGSnrc.
+"*******************************************************************************
         WRITE(IOUTLIST,
 '(//''***ERROR IN INPUT FOR SCORING PLANE '',I4,'' ON CM '',I4/
-''Outer radius of zone '',I4,'' ='',F10.3,'' cm, which is > RMAX_CM/SMAX_CM''/
+''Outer radius of zone'',I4,'' ='',F10.3,'' cm, which is > RMAX_CM/SMAX_CM''/
 ''Radius reduced to '',F10.3,'' cm''//)') ISCORE, IPLANE_to_CM(ISCORE),
                       I, RSCORE_ZONE(ISCORE,I),RMAX_CM(IPLANE_to_CM(ISCORE));
                  RSCORE_ZONE(ISCORE,I)=RMAX_CM(IPLANE_to_CM(ISCORE));
@@ -3567,9 +3571,13 @@ DO ISCORE=1,NSC_PLANES [
       (//'***ERROR IN INPUT FOR SCORING PLANE ',I4,' ON CM ',I4/
 'Outer half-width of zone ',I4,' =',F10.3,' cm, which goes beyond RMAX_CM'/
                      'Half-width reduced to ',F10.3,' cm'//);
+"*******************************************************************************
+" #HYBRID_EGS - WRITE sentence modified because of Mortran preprocessing 
+"               problems due to addition of MPI/OpenMP capabilities to EGSnrc.
+"*******************************************************************************
              WRITE(IOUTLIST,
 '(//''***ERROR IN INPUT FOR SCORING PLANE '',I4,'' ON CM '',I4/
-''Outer half-width of zone '',I4,'' ='',F10.3,
+''Outer half-width of zone'',I4,'' ='',F10.3,
 '' cm, which goes beyond RMAX_CM''/
 ''Half-width reduced to '',F10.3,'' cm''//)') ISCORE, IPLANE_to_CM(ISCORE),
                                              I, RSCORE_ZONE(ISCORE,I),
@@ -3586,9 +3594,13 @@ DO ISCORE=1,NSC_PLANES [
       (//'***ERROR IN INPUT FOR SCORING PLANE ',I4,' ON CM ',I4/
  'Outer half-width of zone ',I4,' =',F10.3,' cm, which is > SMAX_CM'/
  'Half-width reduced to ',F10.3,' cm'//);
+"*******************************************************************************
+" #HYBRID_EGS - WRITE sentence modified because of Mortran preprocessing 
+"               problems due to addition of MPI/OpenMP capabilities to EGSnrc.
+"*******************************************************************************
                 WRITE(IOUTLIST,
 '(//''***ERROR IN INPUT FOR SCORING PLANE '',I4,'' ON CM '',I4/
-''Outer half-width of zone '',I4,'' ='',F10.3,'' cm, which is > SMAX_CM''/
+''Outer half-width of zone'',I4,'' ='',F10.3,'' cm, which is > SMAX_CM''/
 ''Half-width reduced to '',F10.3,'' cm''//)') ISCORE, IPLANE_to_CM(ISCORE),
                           I, RSCORE_ZONE(ISCORE,I),
                           RMAX_CM(IPLANE_to_CM(ISCORE));
@@ -3937,27 +3949,6 @@ call show_transport_parameter(6);
 "see if the user wants to scale elastic scattering cross sections"
 call set_elastic_parameter;
 
-"Revisit ECUTIN/PCUTIN"
-"If all global ECUT/PCUT values were left blank, then"
-"ECUTIN/PCUTIN at this point = 0.  Set ECUTIN/PCUTIN to AE/AP of default"
-"medium unless this is a vacuum, in which case set them equal to the highest"
-"AE/AP of all media.  Will only have implications for IREJCT_GLOBAL=1"
-IF(ECUTIN=0.0)[
-  IF(AIR_INDEX=1) [
-    ECUTIN=AE(1);
-  ]
-  ELSE [
-    DO I=1,NMED[ ECUTIN=MAX(ECUTIN,AE(I));]
-  ]
-]
-IF(PCUTIN=0.0)[
-  IF(AIR_INDEX=1) [
-    PCUTIN=AP(1);
-  ]
-  ELSE [
-    DO I=1,NMED[ PCUTIN=MAX(PCUTIN,AP(I));]
-  ]
-]
 "Note: default region densities (RHOR=0) set to those of PEGS files in HATCH
 ;
 "*******************************************************************************
@@ -8628,11 +8619,15 @@ ELSEIF(LATCH_OPTION  = 2)[
                    T13,''                  secondary particles recorded.'')');
 ]
 ELSEIF(LATCH_OPTION  = 3)[
+"*******************************************************************************
+" #HYBRID_EGS - WRITE sentence modified because of Mortran preprocessing 
+"               problems due to addition of MPI/OpenMP capabilities to EGSnrc.
+"*******************************************************************************
   WRITE(IOUTLIST,'(T13,''LATCH_OPTION = 3: Latch values inherited, origin of''/
-                   T13,''                  secondary particles recorded.  For''/
-                   T13,''                  photons, region no. are recorded''/
-                   T13,''                  where they interact, not where ''/
-                   T13,''                  they just pass through.'')');
+                   T13,''secondary particles recorded. For''/T13,
+                   ''photons, region no. are recorded''/T13,
+                   ''where they interact, not where ''/T13,
+                   ''they just pass through.'')');
 ]
 "LATCH_OPTION  is part of COMIN STACK"
 
@@ -8891,7 +8886,11 @@ IF(ISOURC = 21 | ISOURC=23 | ISOURC=24)["full phase space data input"
      T55, F9.4,'' MeV'')') N_ph_sp_g,E_ph_sp_g;
    WRITE(IOUTLIST,'(/'' There were'',I10,'' positrons with average energy'',
      T55, F9.4,'' MeV'')') N_ph_sp_p,E_ph_sp_p;
-   WRITE(IOUTLIST,'(/'' Maximum particle energy was'',F12.3,'' MeV'')')
+"*******************************************************************************
+" #HYBRID_EGS - WRITE sentence modified because of Mortran preprocessing 
+"               problems due to addition of MPI/OpenMP capabilities to EGSnrc.
+"*******************************************************************************
+   WRITE(IOUTLIST,'(/''Maximum particle energy was'',F12.3,'' MeV'')')
      E_MAX_ph_sp;
 ]
 
@@ -8991,11 +8990,15 @@ IF (NSC_PLANES >  0) [
    ]
    WRITE(IOUTLIST, '(/'' *Includes all particles of all weights'')');
    IF(IRESTART=3 | IRESTART=4 | is_finished)[
+"*******************************************************************************
+" #HYBRID_EGS - WRITE sentence modified because of Mortran preprocessing 
+"               problems due to addition of MPI/OpenMP capabilities to EGSnrc.
+"*******************************************************************************
      WRITE(IOUTLIST,
    '(/'' **Information not available from runs in which previous data''/
       ''   is simply analyzed (IRESTART=3) or combined from parallel''/
-      ''   runs (automatically or with IRESTART=4).  The missing phase''/
-      ''   space file info is available in the header of the (combined)''/
+      ''   runs (automatically or with IRESTART=4).The missing phase''/
+    ''   space file info is available in the header of the (combined)''/
       ''   phase space file.'')');
    ]
    WRITE(IOUTLIST, '(/''  Lines with zero results are not printed'')');
@@ -10779,18 +10782,26 @@ ELSEIF(ISOURC = 3)[ "ISOTROPICALLY RADIATING RING"
           OUTPUT ABS(RBEAM);(//' ***WARNING IN SOURCE 3:'/
           ' Source extends above Z_min_CM(1)'/
           ' RBEAM reset to',F10.4,' cm'//);
+"*******************************************************************************
+" #HYBRID_EGS - WRITE sentence modified because of Mortran preprocessing 
+"               problems due to addition of MPI/OpenMP capabilities to EGSnrc.
+"*******************************************************************************
           WRITE(IOUTLIST,'(//'' ***WARNING IN SOURCE 3:''/
           '' Source extends above Z_min_CM(1)''/
-          '' RBEAM reset to'',F10.4,'' cm''//)')ABS(RBEAM);
+          ''RBEAM reset to'',F10.4,'' cm''//)')ABS(RBEAM);
        ]
        IF(RMINBM + ABS(RBEAM) > Z_min_CM(MAX_CMs+1))[
           RBEAM=-ABS(Z_min_CM(MAX_CMs+1)-RMINBM);
           OUTPUT ABS(RBEAM);(//' ***WARNING IN SOURCE 3:'/
           ' Source extends below simulation geometry'/
           ' RBEAM reset to',F10.4,' cm'//);
+"*******************************************************************************
+" #HYBRID_EGS - WRITE sentence modified because of Mortran preprocessing 
+"               problems due to addition of MPI/OpenMP capabilities to EGSnrc.
+"*******************************************************************************
           WRITE(IOUTLIST,'(//'' ***WARNING IN SOURCE 3:''/
           '' Source extends below simulation geometry''/
-          '' RBEAM reset to'',F10.4,'' cm''//)')ABS(RBEAM);
+          ''RBEAM reset to'',F10.4,'' cm''//)')ABS(RBEAM);
        ]
        DO I=MAX_CMs,1,-1[
           IF(RMINBM-ABS(RBEAM)>=Z_min_CM(I))[
