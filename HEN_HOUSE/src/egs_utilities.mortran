@@ -701,7 +701,7 @@ tmp_string = $cstring(tmp_string) // $cstring(output_file);
 $IF(#,defined(_MPI));
     IF( mpi_size > 1 ) [
         tmp_string = $cstring(tmp_string) // '_w';
-        call egs_itostring(tmp_string,gid+1,.false.);
+        call egs_itostring(tmp_string,mpi_rank+1,.false.);
     ]
 $ELSE(#);
     IF( i_parallel > 0 ) [

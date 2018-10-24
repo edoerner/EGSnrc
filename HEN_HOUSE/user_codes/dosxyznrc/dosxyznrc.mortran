@@ -1404,10 +1404,19 @@ $DECLARE_TIMING_VARIABLES;
 "cput2 is cputime when asked for so elapsed cpu is cput2-cput0 or -cput1"
 
 "*******************************************************************************
-" #HYBRID_EGS - Establish the MPI environment.  
+" #HYBRID_EGS - Establish the MPI environment. It must be initialized here in
+"               order to create one *.eglst file per MPI process.
 "*******************************************************************************
 $INTEGER ierr;  "error code returned by MPI subroutines"
 $MPI{#, call MPI_INIT(ierr)};
+
+$IF(#,_MPI);
+$MPI{#, call MPI_COMM_RANK(MPI_COMM_WORLD, mpi_rank, ierr)};
+$MPI{#, call MPI_COMM_SIZE(MPI_COMM_WORLD, mpi_size, ierr)};
+$ELSE(#);
+mpi_rank = 0;
+mpi_size = 1;
+$ENDIF(#);
 
 call egs_init; "initialize EGSnrc system"
 
@@ -2640,18 +2649,9 @@ IF( n_parallel > 0 ) [  "Job is part of a parallel run "
 "               the values on COMMON blocks with THREADPRIVATE directive are 
 "               initialized through COPYIN clause. 
 "*******************************************************************************
-" NUMBER OF MPI PROCESSES AND RANK OF CURRENT PROCESS "
-$IF(#,_MPI);
-    $MPI{#, call MPI_COMM_RANK(MPI_COMM_WORLD, mpi_rank, ierr)};
-    $MPI{#, call MPI_COMM_SIZE(MPI_COMM_WORLD, mpi_size, ierr)};
-
-    " DIVIDE NUMBER OF REQUESTED HISTORIES AMONG MPI PROCESSES "
-    jcase = jcase/mpi_size;
-    IF( jcase < 1 ) [ jcase = 1; NCASE = jcase*mpi_size; ]
-$ELSE(#);
-    mpi_rank = 0;
-    mpi_size = 1;
-$ENDIF(#);
+" DIVIDE NUMBER OF REQUESTED HISTORIES AMONG MPI PROCESSES "
+jcase = jcase/mpi_size;
+IF( jcase < 1 ) [ jcase = 1; NCASE = jcase*mpi_size; ]
 
 $OMP{0,PARALLEL DEFAULT(SHARED) FIRSTPRIVATE(IXXIN,JXXIN)};
 $OMP{*,COPYIN(/CH_steps/,/egs_vr/,/EPCONT/,/OMP_EGS/,/PHOTIN/)};
