@@ -537,7 +537,9 @@ IF( have_arg ) is_batch = .true.;
 " #HYBRID_EGS - Enable batch mode if more than one MPI process is used.
 "*******************************************************************************
 $IF(#,_MPI);
-    is_batch = .true.;
+    IF( mpi_size > 1 ) [
+        is_batch = .true.;
+    ]    
 $ENDIF(#);
 
 " Check for parallel run option"

@@ -208,9 +208,9 @@ REPLACE {$MAXCURVE} WITH {10};
 REPLACE {$MAXPOINTS} WITH {400};
 
 " - maximum number of voxels in each direction which can be used
-REPLACE {$MAXVOXX} WITH {28};
-REPLACE {$MAXVOXY} WITH {28};
-REPLACE {$MAXVOXZ} WITH {400};
+REPLACE {$MAXVOXX} WITH {41};
+REPLACE {$MAXVOXY} WITH {41};
+REPLACE {$MAXVOXZ} WITH {150};
 REPLACE {$MAXVOXEL} WITH {400};  "Note: MAXVOLXEL must be the greatest of "
                            "the above 3 values!!"
 "Note the main arrays are dimensioned $NDIST1_MAX*$MAXVOXX*$MAXVOXY*$MAXVOXZ"
