@@ -2069,7 +2069,7 @@ call show_transport_parameter(iout); " print the transport parameter settings"
 
 "call this here so that BEAM simulation source can get i_parallel if"
 "pprocess is used"
-"call srcinit(weight);
+call srcinit(weight);
 
 IF(isource=20)[
 	compensated_NCASE = (dble(NCASE)/dble(survival_ratio)+0.5);
@@ -2682,10 +2682,6 @@ $OMP{*,COPYIN(/UPHIOT/,/USEFUL/,/user_relax/)};
             nnphsp=INT((gid)*nshist/gsize)+1;
         ]
     $ENDIF(#);
-
-    " INITIALIZE PARTICLE SOURCE. IT MUST BE PLACED HERE AFTER THREAD GLOBAL ID"
-    " HAS BEEN DETERMINED. "
-    call srcinit(weight);
 
     " PRINT INFORMATION ABOUT PARALLEL ENVIRONMENT TO CONSOLE "
     $IF(#,defined(_OPENMP) || defined(_MPI));

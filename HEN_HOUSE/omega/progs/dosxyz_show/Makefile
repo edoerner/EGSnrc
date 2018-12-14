@@ -39,13 +39,13 @@ include $(EGS_CONFIG)
 
 executable = $(EGS_BINDIR)dosxyz_show$(EXE)
 
-X11_include = -I/usr/X11R6/include
+X11_include = -I/opt/X11/include
 # On our system, Motif include files are in /usr/X11R6/include/Xm =>
 # we don't need a separate -I for Motif. If this is different on your
 # system, adjust accordingly.
 Motif_include =
 
-X11_libdir = -L/usr/X11R6/lib
+X11_libdir = -L/opt/X11/lib
 # On our system, the Motif library is /usr/X11R6/lib =>
 # we don't need a separate -L for Motif. If this is different on your
 # system, adjust accordingly.
